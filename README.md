@@ -13,7 +13,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 - [x] **Etap 5 — Scheduler i kolejka zadań**: harmonogram per konto, planer slotów, kalendarz z przeciąganiem, tick odporny na restarty, Dashboard „Do zrobienia dziś"
 - [x] **Etap 6 — Silnik reguł relistingu**: reguły jako dane, edytor warunków/akcji, limity, podgląd na sucho
 - [x] **Etap 7 — Statystyki i eksporty**: rejestrowanie sprzedaży z marżą, dashboard finansowy, „co się nie sprzedaje", eksporty CSV i kopia zapasowa
-- [ ] Etap 8 — VintedAdapter
+- [x] **Etap 8 — VintedAdapter**: pełna warstwa bezpieczeństwa (limiter, backoff, wyłącznik, idempotencja), realne wysyłanie jawnie wyłączone, sesje szyfrowane AES-256-GCM
 
 ---
 
@@ -247,6 +247,38 @@ cenowym i wieku, a także **podsumowanie miesięczne** do rozliczeń.
   pliku bazy, więc backup to ten eksport; sekrety są w nim tylko zaszyfrowane).
 
 Pliki CSV otwierają się poprawnie w Excelu z polskimi znakami (BOM + średnik).
+
+## Integracja Vinted (zaprojektowana, wyłączona)
+
+> **Automatyczna publikacja jest celowo wyłączona.** Konta prywatne + regulamin
+> Vinted (zakaz automatyzacji) oznaczają realne ryzyko ograniczenia lub blokady
+> konta. Aplikacja jest w pełni użyteczna bez tej funkcji — tryb ręczny
+> (paczka do wklejenia) jest domyślny.
+
+`VintedAdapter` (w `src/adapters/vinted/`) jest zbudowany i przetestowany z pełną
+warstwą bezpieczeństwa wymaganą przez architekturę:
+
+- **Token bucket** — limiter wychodzących żądań, konserwatywny domyślnie.
+- **Wykładniczy backoff z jitterem** przy błędach 429/5xx, ze stałą liczbą prób.
+- **Wyłącznik bezpieczeństwa** — po N kolejnych błędach zatrzymuje adapter
+  całkowicie i wymaga jawnego resetu (bez „przepychania się" dalej).
+- **Idempotencja** — ponowienie po awarii nie tworzy duplikatu ogłoszenia.
+- **Pełny zapis do EventLog** przed i po każdej operacji.
+- **Wykrywanie wygasłej sesji** — zatrzymuje kolejkę konta i prosi o odnowienie,
+  zamiast generować kaskadę błędów.
+
+Kluczowe: **transport nic nie wysyła.** Cała maszyneria działa „na sucho"
+(`DisabledVintedTransport`) — żaden pakiet nie opuszcza serwera. Realny transport
+podłącza się wyłącznie dla oficjalnej ścieżki **Vinted Pro Integrations**,
+podmieniając tę jedną klasę.
+
+**Sesje kont** przechowywane są po stronie serwera **wyłącznie zaszyfrowane**
+(AES-256-GCM; klucz wyprowadzany z `SESSION_SECRET`, który żyje tylko w zmiennej
+środowiskowej) — zrzut bazy bez tego klucza nie ujawnia sesji.
+
+Zakładka **Ustawienia → Integracja Vinted** pozwala zapisać sesję (zaszyfrowaną),
+uruchomić **diagnostykę na sucho** (pokazuje, że adapter działa, a transport jest
+wyłączony) i przetestować przepływ „sesja wygasła" (wstrzymuje kolejkę konta).
 
 ## Zdjęcia
 

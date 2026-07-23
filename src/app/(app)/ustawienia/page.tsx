@@ -3,6 +3,7 @@ import { accounts } from "@/db/schema";
 import { config } from "@/lib/config";
 import { parseScheduleSettings } from "@/lib/schedule-settings";
 import { ScheduleForm, type ScheduleFormAccount } from "./schedule-form";
+import { VintedPanel, type VintedAccount } from "./vinted-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,13 @@ export default async function UstawieniaPage() {
   }));
 
   const aiConfigured = Boolean(config.GEMINI_API_KEY);
+
+  const vintedAccounts: VintedAccount[] = accountRows.map((a) => ({
+    id: a.id,
+    name: a.name,
+    sessionStatus: a.sessionStatus,
+    hasSession: a.secretRef !== null,
+  }));
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -69,6 +77,8 @@ export default async function UstawieniaPage() {
           </div>
         )}
       </section>
+
+      <VintedPanel accounts={vintedAccounts} />
     </div>
   );
 }
