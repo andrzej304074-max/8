@@ -1,0 +1,19 @@
+# zależności
+node_modules/
+
+# build
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# środowisko — NIGDY nie commitujemy sekretów
+.env
+.env*.local
+
+# lokalna baza danych
+data/*.db
+data/*.db-*
+
+# Vercel
+.vercel

@@ -12,12 +12,14 @@ i mówię o tym wprost:
 |---|---|
 | Baza = jeden plik SQLite na Twoim dysku | Baza w **Turso** (SQLite w chmurze, darmowy plan). Lokalnie do developmentu nadal zwykły plik SQLite — ten sam schemat. |
 | Kopia zapasowa = skopiowanie pliku | Wbudowany **eksport/dump bazy** jednym kliknięciem (plik `.sql` + CSV). |
-| „Sesja Vinted nigdy nie opuszcza mojego komputera" | **Zaostrzamy**: sesje Vinted w ogóle nie istnieją po stronie serwera. Publikacja działa w trybie ręcznym (paczka do wklejenia). Automatyczna publikacja z serwera w chmurze wymagałaby trzymania tam Twojej sesji — tego nie robimy. |
+| „Sesja Vinted nigdy nie opuszcza mojego komputera" | **Zmienione na Twoje polecenie przy akceptacji:** sesje Vinted będą przechowywane po stronie serwera — wyłącznie w postaci zaszyfrowanej (AES-256-GCM, klucz szyfrujący w zmiennej środowiskowej, nigdy w repozytorium, nigdy jawnym tekstem). Korzysta z nich dopiero `VintedAdapter` w Etapie 8; do tego czasu domyślnym trybem publikacji pozostaje tryb ręczny. |
 
-Konsekwencja dla Etapu 8: ponieważ wszystkie Twoje konta są prywatne (bez Vinted Pro),
-`VintedAdapter` zostanie **zaprojektowany jako interfejs i przetestowany w trybie DryRun**,
-ale realna automatyczna publikacja pozostanie wyłączona, dopóki nie będzie oficjalnej drogi
-(Vinted Pro Integrations). To nie jest ograniczenie doklejone na końcu — to domyślny tryb pracy.
+Konsekwencja dla Etapu 8: `VintedAdapter` powstanie z pełnym pakietem bezpieczeństwa
+(token bucket, backoff, wyłącznik po N błędach, idempotencja), a sesje kont będą trzymane
+na serwerze w postaci zaszyfrowanej. Uczciwe ostrzeżenie, które pozostaje w mocy:
+automatyzacja kont prywatnych jest niezgodna z regulaminem Vinted i realnie ryzykuje
+blokadą konta — dlatego człowiek w pętli pozostaje trybem domyślnym, a adapter
+automatyczny włączasz świadomie, per konto.
 
 Bonus wersji webowej: dostęp z telefonu — zdjęcia przedmiotów robisz telefonem i wrzucasz
 bezpośrednio, bez przenoszenia na komputer.
@@ -132,13 +134,21 @@ erDiagram
         int likes
         text created_via "manual|adapter — co zrobiła apka, a co Ty"
     }
+    ACCOUNT ||--o| SECRET : "sesja (zaszyfrowana)"
     ACCOUNT {
         int id PK
         text name
         text platform
         text session_status "manual|active|expired"
-        text secret_ref "referencja, nigdy sekret; w chmurze zawsze NULL"
+        text secret_ref "referencja do SECRET, nigdy sam sekret"
         int active_listing_limit
+    }
+    SECRET {
+        text ref PK
+        text ciphertext "sesja zaszyfrowana AES-256-GCM"
+        text iv
+        text created_at
+        text updated_at
     }
     TEMPLATE {
         int id PK
@@ -198,6 +208,9 @@ erDiagram
 Uwagi projektowe:
 
 - **Ceny w groszach (integer)** — nigdy float, żeby uniknąć błędów zaokrągleń w marżach.
+- **`SECRET` przechowuje wyłącznie szyfrogram** (AES-256-GCM); klucz szyfrujący żyje w zmiennej
+  środowiskowej serwera, więc sam zrzut bazy nie ujawnia sesji. Celowo bez klucza obcego —
+  usunięcie sekretu (wylogowanie konta) nie może kaskadowo ruszyć danych konta.
 - **`EVENT_LOG` bez kluczy obcych** — celowo: dziennik jest niezmienialny i ma przetrwać
   nawet usunięcie przedmiotu czy konta, których dotyczył.
 - **`JOB.idempotency_key` unikalny** — ponowienie zadania po awarii nie utworzy duplikatu.
@@ -266,7 +279,7 @@ Interfejs `MarketplaceAdapter`: `publish`, `update`, `delete`, `fetchListings`, 
 |---|---|---|
 | `ManualAdapter` | **Domyślny.** Zero żądań sieciowych. Generuje paczkę: tekst do skopiowania, zdjęcia, checklistę. | Etap 4 |
 | `DryRunAdapter` | Loguje do EventLog, co zostałoby wysłane. Do testów schedulera i reguł. | Etap 4 |
-| `VintedAdapter` | Zaprojektowany (token bucket, backoff z jitterem, wyłącznik bezpieczeństwa po N błędach, idempotencja, pełny EventLog), ale **realna publikacja wyłączona** — konta prywatne + hosting w chmurze oznaczałyby trzymanie Twojej sesji na serwerze, czego nie robimy. Włączalny tylko dla oficjalnej ścieżki (Vinted Pro). | Etap 8 |
+| `VintedAdapter` | Realna implementacja: token bucket, backoff z jitterem, wyłącznik bezpieczeństwa po N błędach, idempotencja, pełny EventLog. Sesje kont przechowywane na serwerze **wyłącznie zaszyfrowane** (AES-256-GCM). Włączany świadomie per konto; domyślnie wyłączony, bo automatyzacja kont prywatnych łamie regulamin Vinted i ryzykuje blokadą. | Etap 8 |
 
 ## 7. Etapy prac (bez zmian w kolejności, dostosowane do weba)
 
