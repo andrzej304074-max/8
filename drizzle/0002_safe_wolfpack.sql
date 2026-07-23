@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `adapter` text DEFAULT 'manual' NOT NULL;

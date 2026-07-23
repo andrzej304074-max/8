@@ -15,6 +15,13 @@
       "when": 1784807401395,
       "tag": "0001_regular_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784808294312,
+      "tag": "0002_safe_wolfpack",
+      "breakpoints": true
     }
   ]
 }

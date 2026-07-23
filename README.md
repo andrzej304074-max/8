@@ -9,7 +9,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 - [x] **Etap 1 — Fundament**: szkielet aplikacji, schemat bazy z migracjami, logowanie hasłem, ekran Magazynu
 - [x] **Etap 2 — Magazyn**: CRUD przedmiotów, zdjęcia z czyszczeniem EXIF (w tym GPS), filtry, siatka/tabela, masowa edycja, widok „zalegające"
 - [x] **Etap 3 — Generowanie ogłoszeń przez AI**: Gemini (darmowy plan), walidacja Zod z ponowną próbą, cache po hashu zdjęć, formularz akceptacji
-- [ ] Etap 4 — ManualAdapter i DryRunAdapter (paczka do ręcznego wklejenia)
+- [x] **Etap 4 — ManualAdapter i DryRunAdapter**: konta, paczka do ręcznego wklejenia, tryb dry run, dziennik EventLog w Historii
 - [ ] Etap 5 — Scheduler i kolejka zadań
 - [ ] Etap 6 — Silnik reguł relistingu
 - [ ] Etap 7 — Statystyki i eksporty
@@ -161,6 +161,26 @@ przedmiotu nie zużywa limitu.
 
 Przycisk „Generuj opis z AI" znajdziesz na karcie przedmiotu (Magazyn → kliknij
 przedmiot), pod zdjęciami.
+
+## Publikacja ręczna (paczka do wklejenia)
+
+Zgodnie z regulaminem Vinted aplikacja domyślnie **nie publikuje niczego
+automatycznie**. Zamiast tego przygotowuje kompletną paczkę:
+
+1. Dodaj konto w zakładce **Konta** (tryb „Ręczny").
+2. Na karcie przedmiotu kliknij **Przygotuj ogłoszenie** — tytuł i opis
+   zaciągną się z zaakceptowanej sugestii AI (albo z danych przedmiotu).
+3. Na stronie paczki: skopiuj tytuł, opis i cenę przyciskami **Kopiuj**,
+   otwórz i zapisz zdjęcia, przejdź checklistę pól (kategoria, stan, rozmiar…),
+   sprawdź ostrzeżenia (w tym wykryte przez AI wady).
+4. Wklej wszystko w aplikacji/na stronie Vinted i wróć kliknąć
+   **„Wkleiłem — oznacz jako opublikowane"** (możesz dodać link do ogłoszenia).
+   Status przedmiotu sam zmieni się na „Wystawiony".
+
+Konto w trybie **dry run** niczego nie publikuje — loguje pełny payload do
+**Historii**; przyda się do bezpiecznego testowania harmonogramu (Etap 5)
+i reguł (Etap 6). Każda operacja zostawia ślad w Historii z rozróżnieniem,
+co zrobiła aplikacja, a co Ty.
 
 ## Zdjęcia
 

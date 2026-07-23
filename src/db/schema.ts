@@ -108,10 +108,16 @@ export const listings = sqliteTable(
   ],
 );
 
+export const ACCOUNT_ADAPTERS = ["manual", "dry_run", "vinted"] as const;
+export type AccountAdapter = (typeof ACCOUNT_ADAPTERS)[number];
+
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   platform: text("platform").notNull().default("vinted"),
+  // Sposób publikacji per konto: manual (domyślny), dry_run (tylko logi),
+  // vinted (Etap 8 — realny adapter, włączany świadomie).
+  adapter: text("adapter").$type<AccountAdapter>().notNull().default("manual"),
   sessionStatus: text("session_status")
     .$type<"manual" | "active" | "expired">()
     .notNull()
