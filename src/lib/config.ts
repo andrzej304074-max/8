@@ -9,6 +9,8 @@ const envSchema = z.object({
   APP_PASSWORD: z
     .string({ required_error: "brak wartości" })
     .min(8, "musi mieć co najmniej 8 znaków"),
+  // Puste = zdjęcia na dysku lokalnym (data/uploads); ustawione = Vercel Blob.
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
 });
 
 function loadConfig() {

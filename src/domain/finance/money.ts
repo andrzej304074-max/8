@@ -13,6 +13,12 @@ export function formatPln(grosze: number): string {
   return formatter.format(grosze / 100);
 }
 
+/** Wartość do pola formularza: grosze → "45,00"; null → pusty tekst. */
+export function groszeToInputValue(grosze: number | null): string {
+  if (grosze === null) return "";
+  return (grosze / 100).toFixed(2).replace(".", ",");
+}
+
 /**
  * Parsuje kwotę wpisaną przez użytkownika ("12", "12,50", "12.5", "1 250,00")
  * na grosze. Zwraca null dla wartości nieprawidłowych lub ujemnych.

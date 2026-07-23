@@ -7,7 +7,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 ## Stan prac
 
 - [x] **Etap 1 — Fundament**: szkielet aplikacji, schemat bazy z migracjami, logowanie hasłem, ekran Magazynu
-- [ ] Etap 2 — Magazyn: CRUD przedmiotów, zdjęcia z czyszczeniem EXIF, filtry
+- [x] **Etap 2 — Magazyn**: CRUD przedmiotów, zdjęcia z czyszczeniem EXIF (w tym GPS), filtry, siatka/tabela, masowa edycja, widok „zalegające"
 - [ ] Etap 3 — Generowanie ogłoszeń przez AI
 - [ ] Etap 4 — ManualAdapter i DryRunAdapter (paczka do ręcznego wklejenia)
 - [ ] Etap 5 — Scheduler i kolejka zadań
@@ -138,6 +138,16 @@ Do działania w chmurze potrzebna jest baza w chmurze — używamy **Turso**
 | `npm run db:migrate` | Tworzy/aktualizuje tabele w bazie |
 | `npm test` | Uruchamia testy logiki domenowej |
 | `npm run build` | Buduje wersję produkcyjną (sprawdza też typy) |
+
+## Zdjęcia
+
+- Formaty: **JPG, PNG, WebP** (zdjęcia HEIC z iPhone'a: małe pliki przejdą,
+  większe wymagają konwersji do JPG — najprościej zrobić zrzut/udostępnienie jako JPG).
+- Każde zdjęcie przy zapisie jest skalowane, kompresowane i **czyszczone ze wszystkich
+  metadanych EXIF, łącznie ze współrzędnymi GPS** — to zachowanie jest objęte testami
+  automatycznymi i nie da się go przypadkiem wyłączyć.
+- Lokalnie pliki trafiają do `data/uploads/`, na Vercel — do Vercel Blob
+  (w projekcie Vercel: **Storage → Create Database → Blob**; token doda się sam).
 
 ## Bezpieczeństwo — co gdzie leży
 
