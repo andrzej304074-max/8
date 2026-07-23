@@ -39,6 +39,9 @@ export const items = sqliteTable(
     location: text("location"),
     status: text("status").$type<ItemStatus>().notNull().default("draft"),
     notes: text("notes"),
+    // Wygenerowana przez AI propozycja ogłoszenia (JSON) — tytuł i opis czekają tu
+    // na Etap 4, w którym powstanie z nich Listing.
+    aiSuggestion: text("ai_suggestion"),
     createdAt: text("created_at").notNull().$defaultFn(nowIso),
     updatedAt: text("updated_at").notNull().$defaultFn(nowIso).$onUpdateFn(nowIso),
   },

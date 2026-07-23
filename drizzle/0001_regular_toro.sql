@@ -1,0 +1,1 @@
+ALTER TABLE `items` ADD `ai_suggestion` text;

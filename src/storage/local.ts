@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { StorageProvider } from "./index";
 
@@ -19,6 +19,10 @@ export class LocalStorageProvider implements StorageProvider {
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, data);
     return key;
+  }
+
+  async get(key: string): Promise<Buffer> {
+    return readFile(resolveUploadPath(key));
   }
 
   async delete(key: string): Promise<void> {

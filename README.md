@@ -8,7 +8,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 
 - [x] **Etap 1 — Fundament**: szkielet aplikacji, schemat bazy z migracjami, logowanie hasłem, ekran Magazynu
 - [x] **Etap 2 — Magazyn**: CRUD przedmiotów, zdjęcia z czyszczeniem EXIF (w tym GPS), filtry, siatka/tabela, masowa edycja, widok „zalegające"
-- [ ] Etap 3 — Generowanie ogłoszeń przez AI
+- [x] **Etap 3 — Generowanie ogłoszeń przez AI**: Gemini (darmowy plan), walidacja Zod z ponowną próbą, cache po hashu zdjęć, formularz akceptacji
 - [ ] Etap 4 — ManualAdapter i DryRunAdapter (paczka do ręcznego wklejenia)
 - [ ] Etap 5 — Scheduler i kolejka zadań
 - [ ] Etap 6 — Silnik reguł relistingu
@@ -138,6 +138,29 @@ Do działania w chmurze potrzebna jest baza w chmurze — używamy **Turso**
 | `npm run db:migrate` | Tworzy/aktualizuje tabele w bazie |
 | `npm test` | Uruchamia testy logiki domenowej |
 | `npm run build` | Buduje wersję produkcyjną (sprawdza też typy) |
+
+## Generowanie ogłoszeń przez AI (Gemini)
+
+Aplikacja wysyła zdjęcia przedmiotu do modelu wizyjnego Google Gemini i dostaje
+propozycję ogłoszenia: tytuł, opis, markę (z poziomem pewności), kategorię,
+rozmiar, stan, kolory, materiał, sugerowaną cenę oraz **listę wykrytych wad** —
+nic nie zapisuje się bez Twojej akceptacji w formularzu.
+
+### Jak zdobyć darmowy klucz (bez karty płatniczej)
+
+1. Wejdź na <https://aistudio.google.com> i zaloguj się kontem Google.
+2. Kliknij **Get API key** → **Create API key**.
+3. Skopiuj klucz i wklej do pliku `.env` jako wartość `GEMINI_API_KEY`
+   (na Vercel: Settings → Environment Variables → dodaj `GEMINI_API_KEY`).
+4. Zrestartuj aplikację (`Ctrl+C` i ponownie `npm run dev`).
+
+Darmowy plan Gemini w zupełności wystarcza — opisanie całego magazynu
+150 przedmiotów mieści się w limitach jednego dnia. Wyniki są dodatkowo
+cache'owane po hashu zestawu zdjęć, więc ponowne otwarcie tego samego
+przedmiotu nie zużywa limitu.
+
+Przycisk „Generuj opis z AI" znajdziesz na karcie przedmiotu (Magazyn → kliknij
+przedmiot), pod zdjęciami.
 
 ## Zdjęcia
 

@@ -11,6 +11,9 @@ const envSchema = z.object({
     .min(8, "musi mieć co najmniej 8 znaków"),
   // Puste = zdjęcia na dysku lokalnym (data/uploads); ustawione = Vercel Blob.
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  // Klucz do Gemini (aistudio.google.com). Puste = generowanie AI wyłączone.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
 });
 
 function loadConfig() {

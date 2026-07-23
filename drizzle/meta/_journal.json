@@ -8,6 +8,13 @@
       "when": 1784803104580,
       "tag": "0000_tough_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784807401395,
+      "tag": "0001_regular_toro",
+      "breakpoints": true
     }
   ]
 }

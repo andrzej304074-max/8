@@ -10,6 +10,8 @@ import { VercelBlobProvider } from "./vercel-blob";
 export interface StorageProvider {
   /** Zapisuje plik i zwraca jego klucz. */
   put(key: string, data: Buffer, contentType: string): Promise<string>;
+  /** Odczytuje plik (np. do wysłania zdjęć do modelu wizyjnego). */
+  get(key: string): Promise<Buffer>;
   /** Usuwa plik; brak pliku nie jest błędem. */
   delete(key: string): Promise<void>;
   /** Adres, pod którym przeglądarka zobaczy plik. */

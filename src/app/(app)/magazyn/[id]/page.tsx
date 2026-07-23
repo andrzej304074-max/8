@@ -1,14 +1,27 @@
 import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { AiSuggestionRecord } from "@/ai/schema";
 import { db } from "@/db";
 import { items, photos } from "@/db/schema";
 import { daysInStock } from "@/domain/inventory/staleness";
 import { getStorage } from "@/storage";
+import { AiPanel } from "./ai-panel";
 import { EditItemForm } from "./edit-form";
 import { PhotosManager, type PhotoView } from "./photos-manager";
 
 export const dynamic = "force-dynamic";
+// Generowanie AI potrafi trwać kilkadziesiąt sekund — podnosimy limit funkcji na Vercel.
+export const maxDuration = 60;
+
+function readAiRecord(raw: string | null): AiSuggestionRecord | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AiSuggestionRecord;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ItemPage({
   params,
@@ -48,14 +61,18 @@ export default async function ItemPage({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Zdjęcia</h2>
-          <PhotosManager itemId={item.id} photos={photoViews} />
+        <section className="space-y-6">
+          <div>
+            <h2 className="mb-2 text-sm font-semibold">Zdjęcia</h2>
+            <PhotosManager itemId={item.id} photos={photoViews} />
+          </div>
+          <AiPanel itemId={item.id} record={readAiRecord(item.aiSuggestion)} />
         </section>
 
         <section>
           <h2 className="mb-2 text-sm font-semibold">Dane przedmiotu</h2>
-          <EditItemForm item={item} />
+          {/* Klucz wymusza remount formularza po zmianach z zewnątrz (np. Zastosuj z AI). */}
+          <EditItemForm key={item.updatedAt} item={item} />
         </section>
       </div>
     </div>

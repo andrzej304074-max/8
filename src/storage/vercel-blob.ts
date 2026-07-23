@@ -15,6 +15,15 @@ export class VercelBlobProvider implements StorageProvider {
     return result.url;
   }
 
+  async get(key: string): Promise<Buffer> {
+    // W trybie Blob kluczem jest publiczny adres URL pliku.
+    const response = await fetch(key);
+    if (!response.ok) {
+      throw new Error(`Nie udało się pobrać pliku z Blob (${response.status})`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async delete(key: string): Promise<void> {
     await del(key, { token: this.token });
   }
