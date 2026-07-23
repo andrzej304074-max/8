@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/dodaj", label: "Dodaj przedmiot" },
   { href: "/kolejka", label: "Kolejka" },
   { href: "/reguly", label: "Reguły" },
+  { href: "/statystyki", label: "Statystyki" },
   { href: "/konta", label: "Konta" },
   { href: "/historia", label: "Historia" },
   { href: "/ustawienia", label: "Ustawienia" },

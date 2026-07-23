@@ -4,6 +4,7 @@ import { buildManualPackage } from "@/adapters/package";
 import { loadListingBundle } from "@/adapters/payload";
 import { LISTING_STATUS_LABELS } from "@/lib/labels";
 import { CopyBlock, PackageActions } from "./package-actions";
+import { SoldForm } from "./sold-form";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +136,18 @@ export default async function ListingPackagePage({
         status={listing.status}
         isDryRun={isDryRun}
       />
+
+      {listing.status === "published" ? (
+        <div className="mt-4">
+          <SoldForm listingId={listing.id} suggestedPriceGr={listing.priceGr} />
+        </div>
+      ) : null}
+
+      {listing.status === "sold" ? (
+        <p className="mt-4 rounded bg-green-100 px-3 py-2 text-sm text-green-800 dark:bg-green-950 dark:text-green-300">
+          Ten przedmiot został sprzedany. Szczegóły finansowe znajdziesz w Statystykach.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -7,7 +7,9 @@ import { getAdapterForAccount } from "@/adapters";
 import { loadListingBundle } from "@/adapters/payload";
 import type { ActionResult } from "@/app/(app)/magazyn/actions";
 import { db } from "@/db";
-import { items, listings } from "@/db/schema";
+import { items, listings, sales } from "@/db/schema";
+import { computeMarginGr } from "@/domain/finance/stats";
+import { parsePlnToGrosze } from "@/domain/finance/money";
 import { logEvent } from "@/lib/event-log";
 import { createListingCore } from "@/lib/listing-service";
 
@@ -78,6 +80,70 @@ export async function runDryRunPublish(listingId: number): Promise<ActionResult>
       logEvent({ actor: "app", account: bundle.account.name, action, outcome, detail, payload }),
   });
   revalidatePath("/historia");
+  return { ok: true, data: undefined };
+}
+
+function parsePriceField(value: FormDataEntryValue | null, fallback = 0): number | null {
+  const raw = String(value ?? "").trim();
+  if (raw === "") return fallback;
+  return parsePlnToGrosze(raw);
+}
+
+/** Oznacza ogłoszenie jako sprzedane i zapisuje Sale z wyliczoną marżą. */
+export async function markListingSold(
+  listingId: number,
+  formData: FormData,
+): Promise<ActionResult> {
+  const bundle = await loadListingBundle(listingId);
+  if (!bundle) return { ok: false, error: "Ogłoszenie nie istnieje" };
+
+  const finalPriceGr = parsePriceField(formData.get("finalPrice"));
+  if (finalPriceGr === null || finalPriceGr === 0) {
+    return { ok: false, error: "Podaj poprawną cenę finalną sprzedaży." };
+  }
+  const commissionGr = parsePriceField(formData.get("commission"));
+  const shippingGr = parsePriceField(formData.get("shipping"));
+  if (commissionGr === null || shippingGr === null) {
+    return { ok: false, error: "Prowizja i koszt wysyłki muszą być poprawnymi kwotami." };
+  }
+  const soldAtInput = String(formData.get("soldAt") ?? "").trim();
+  const soldAt = soldAtInput !== "" ? new Date(soldAtInput).toISOString() : new Date().toISOString();
+
+  const marginGr = computeMarginGr({
+    finalPriceGr,
+    commissionGr,
+    shippingGr,
+    purchasePriceGr: bundle.item.purchasePriceGr,
+  });
+
+  await db.insert(sales).values({
+    listingId,
+    finalPriceGr,
+    commissionGr,
+    shippingGr,
+    marginGr,
+    soldAt,
+  });
+
+  await db
+    .update(listings)
+    .set({ status: "sold", priceGr: finalPriceGr })
+    .where(eq(listings.id, listingId));
+  await db.update(items).set({ status: "sold" }).where(eq(items.id, bundle.item.id));
+
+  await logEvent({
+    actor: "user",
+    account: bundle.account.name,
+    action: "listing.sold",
+    outcome: "ok",
+    detail: `Sprzedano „${bundle.item.name}" za ${(finalPriceGr / 100).toFixed(2)} zł (marża ${(marginGr / 100).toFixed(2)} zł)`,
+    payload: { finalPriceGr, commissionGr, shippingGr, marginGr },
+  });
+
+  revalidatePath(`/ogloszenia/${listingId}`);
+  revalidatePath(`/magazyn/${bundle.item.id}`);
+  revalidatePath("/magazyn");
+  revalidatePath("/statystyki");
   return { ok: true, data: undefined };
 }
 

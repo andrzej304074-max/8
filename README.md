@@ -12,7 +12,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 - [x] **Etap 4 — ManualAdapter i DryRunAdapter**: konta, paczka do ręcznego wklejenia, tryb dry run, dziennik EventLog w Historii
 - [x] **Etap 5 — Scheduler i kolejka zadań**: harmonogram per konto, planer slotów, kalendarz z przeciąganiem, tick odporny na restarty, Dashboard „Do zrobienia dziś"
 - [x] **Etap 6 — Silnik reguł relistingu**: reguły jako dane, edytor warunków/akcji, limity, podgląd na sucho
-- [ ] Etap 7 — Statystyki i eksporty
+- [x] **Etap 7 — Statystyki i eksporty**: rejestrowanie sprzedaży z marżą, dashboard finansowy, „co się nie sprzedaje", eksporty CSV i kopia zapasowa
 - [ ] Etap 8 — VintedAdapter
 
 ---
@@ -227,6 +227,26 @@ reguła by dziś dotknęła i z jakim efektem („50,00 → 45,00 zł"), oraz os
 pasujące, ale pominięte (np. cena już na progu, wyczerpany limit obniżek). Nic
 nie wykonuje się bez potwierdzenia. Obniżki cen zapisują się lokalnie i w
 Historii — pamiętaj zaktualizować cenę także na platformie.
+
+## Statystyki, finanse i eksporty
+
+Gdy przedmiot się sprzeda, na stronie jego ogłoszenia klikasz **„Oznacz jako
+sprzedane"** i podajesz cenę finalną, prowizję, koszt wysyłki i datę. Marża
+liczy się automatycznie (cena finalna − prowizja − wysyłka − cena zakupu).
+
+Zakładka **Statystyki** pokazuje: liczbę sprzedaży, przychód, łączną marżę,
+średni czas od wystawienia do sprzedaży, rotację magazynu, najlepsze i najgorsze
+kategorie oraz marki, widok **„co się nie sprzedaje"** z rozbiciem po przedziale
+cenowym i wieku, a także **podsumowanie miesięczne** do rozliczeń.
+
+**Eksporty** (przyciski w Statystykach):
+- sprzedaż → CSV,
+- cały magazyn → CSV,
+- podsumowanie miesięczne → CSV,
+- **kopia zapasowa całej bazy → jeden plik JSON** (w chmurze nie da się skopiować
+  pliku bazy, więc backup to ten eksport; sekrety są w nim tylko zaszyfrowane).
+
+Pliki CSV otwierają się poprawnie w Excelu z polskimi znakami (BOM + średnik).
 
 ## Zdjęcia
 
