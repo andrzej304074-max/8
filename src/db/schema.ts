@@ -243,6 +243,22 @@ export const rules = sqliteTable("rules", {
   updatedAt: text("updated_at").notNull().$defaultFn(nowIso).$onUpdateFn(nowIso),
 });
 
+// Wykonania reguł per ogłoszenie — źródło per-item limitów (np. "obniż maks. 3 razy")
+// i ślad audytowy. Bez klucza obcego do rules/listings: historia przeżywa ich usunięcie.
+export const ruleExecutions = sqliteTable(
+  "rule_executions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ruleId: integer("rule_id").notNull(),
+    listingId: integer("listing_id").notNull(),
+    itemId: integer("item_id").notNull(),
+    effect: text("effect").notNull(),
+    detail: text("detail"),
+    executedAt: text("executed_at").notNull().$defaultFn(nowIso),
+  },
+  (t) => [index("idx_rule_exec_rule_listing").on(t.ruleId, t.listingId)],
+);
+
 // Cache odpowiedzi modelu wizyjnego po hashu zestawu zdjęć — nie płacimy dwa razy za to samo.
 export const aiCache = sqliteTable("ai_cache", {
   photoSetHash: text("photo_set_hash").primaryKey(),

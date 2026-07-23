@@ -11,7 +11,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 - [x] **Etap 3 — Generowanie ogłoszeń przez AI**: Gemini (darmowy plan), walidacja Zod z ponowną próbą, cache po hashu zdjęć, formularz akceptacji
 - [x] **Etap 4 — ManualAdapter i DryRunAdapter**: konta, paczka do ręcznego wklejenia, tryb dry run, dziennik EventLog w Historii
 - [x] **Etap 5 — Scheduler i kolejka zadań**: harmonogram per konto, planer slotów, kalendarz z przeciąganiem, tick odporny na restarty, Dashboard „Do zrobienia dziś"
-- [ ] Etap 6 — Silnik reguł relistingu
+- [x] **Etap 6 — Silnik reguł relistingu**: reguły jako dane, edytor warunków/akcji, limity, podgląd na sucho
 - [ ] Etap 7 — Statystyki i eksporty
 - [ ] Etap 8 — VintedAdapter
 
@@ -206,6 +206,27 @@ przerwie świeżo zaległe zadania trafiają na listę „Do zrobienia", a stars
 Opcjonalnie ustaw `CRON_SECRET`, aby zabezpieczyć endpoint crona (Vercel dołączy
 nagłówek automatycznie). Strefę czasową okien zmienisz zmienną `APP_TIMEZONE`
 (domyślnie `Europe/Warsaw`).
+
+## Reguły relistingu
+
+Reguły to **dane w bazie, nie kod** — definiujesz je w zakładce **Reguły**:
+
+- **Warunki** (wszystkie / dowolny): pola takie jak dni od wystawienia, dni w
+  magazynie, liczba wyświetleń, polubień, cena, status — z operatorami
+  (większe/mniejsze/równe…).
+- **Akcja**: obniż cenę (o X%, nie poniżej progu, maks. N razy na przedmiot),
+  wystaw ponownie albo odśwież ogłoszenie.
+- **Limit wykonań** całej reguły (opcjonalny) i włącznik.
+
+Przykłady ze specyfikacji, które da się złożyć klikając:
+- „po 21 dniach obniż cenę o 10%, maksymalnie trzy razy, nie schodząc poniżej progu",
+- „jeśli wystawiony dłużej niż 7 dni i mało wyświetleń — wystaw ponownie".
+
+**Podgląd na sucho** (przycisk przy regule) pokazuje dokładnie, które przedmioty
+reguła by dziś dotknęła i z jakim efektem („50,00 → 45,00 zł"), oraz osobno te
+pasujące, ale pominięte (np. cena już na progu, wyczerpany limit obniżek). Nic
+nie wykonuje się bez potwierdzenia. Obniżki cen zapisują się lokalnie i w
+Historii — pamiętaj zaktualizować cenę także na platformie.
 
 ## Zdjęcia
 
