@@ -125,6 +125,11 @@ export const accounts = sqliteTable("accounts", {
   // Referencja do tabeli secrets — nigdy sam sekret.
   secretRef: text("secret_ref"),
   activeListingLimit: integer("active_listing_limit"),
+  // Ustawienia harmonogramu publikacji (JSON walidowany w lib/schedule-settings).
+  scheduleSettings: text("schedule_settings"),
+  // Twarde limity operacji per konto — respektowane przy generowaniu planu.
+  maxOpsPerHour: integer("max_ops_per_hour"),
+  maxOpsPerDay: integer("max_ops_per_day"),
   createdAt: text("created_at").notNull().$defaultFn(nowIso),
 });
 
@@ -154,6 +159,7 @@ export type JobType = (typeof JOB_TYPES)[number];
 
 export const JOB_STATUSES = [
   "pending",
+  "paused",
   "due",
   "running",
   "done",

@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Chronimy wszystko poza stroną logowania, zasobami Next i plikami statycznymi.
-  matcher: ["/((?!login|_next/static|_next/image|favicon\\.ico|.*\\..*).*)"],
+  // Chronimy wszystko poza stroną logowania, endpointem crona (własna ochrona
+  // przez CRON_SECRET), zasobami Next i plikami statycznymi.
+  matcher: ["/((?!login|api/cron|_next/static|_next/image|favicon\\.ico|.*\\..*).*)"],
 };

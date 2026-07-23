@@ -10,7 +10,7 @@ Projekt architektury: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md).
 - [x] **Etap 2 — Magazyn**: CRUD przedmiotów, zdjęcia z czyszczeniem EXIF (w tym GPS), filtry, siatka/tabela, masowa edycja, widok „zalegające"
 - [x] **Etap 3 — Generowanie ogłoszeń przez AI**: Gemini (darmowy plan), walidacja Zod z ponowną próbą, cache po hashu zdjęć, formularz akceptacji
 - [x] **Etap 4 — ManualAdapter i DryRunAdapter**: konta, paczka do ręcznego wklejenia, tryb dry run, dziennik EventLog w Historii
-- [ ] Etap 5 — Scheduler i kolejka zadań
+- [x] **Etap 5 — Scheduler i kolejka zadań**: harmonogram per konto, planer slotów, kalendarz z przeciąganiem, tick odporny na restarty, Dashboard „Do zrobienia dziś"
 - [ ] Etap 6 — Silnik reguł relistingu
 - [ ] Etap 7 — Statystyki i eksporty
 - [ ] Etap 8 — VintedAdapter
@@ -181,6 +181,31 @@ Konto w trybie **dry run** niczego nie publikuje — loguje pełny payload do
 **Historii**; przyda się do bezpiecznego testowania harmonogramu (Etap 5)
 i reguł (Etap 6). Każda operacja zostawia ślad w Historii z rozróżnieniem,
 co zrobiła aplikacja, a co Ty.
+
+## Harmonogram i kolejka publikacji
+
+Zamiast wystawiać wszystko naraz, aplikacja rozkłada publikacje w czasie:
+
+1. **Ustawienia** → dla każdego konta ustaw: ile przedmiotów dziennie, okno
+   godzinowe (np. 8:00–21:00), dni tygodnia, losowy rozrzut oraz twarde limity
+   operacji na godzinę i na dobę.
+2. **Kolejka** → przycisk „Zaplanuj" rozkłada przedmioty w statusie „Gotowy" na
+   konkretne terminy wg harmonogramu konta. Zadania widać na kalendarzu — możesz
+   je **przeciągać** na inne dni, **wstrzymywać**, **wznawiać** i **anulować**.
+3. **Dashboard** → gdy nadejdzie termin zadania, pojawia się na liście
+   **„Do zrobienia dziś"**. Klikasz „Przygotuj paczkę" → tworzy się ogłoszenie
+   i lądujesz na stronie paczki do wklejenia. **Człowiek w pętli** — nic nie
+   publikuje się samo.
+
+**Odporność na restarty:** nie ma procesu w tle. Zadania żyją w bazie, a
+idempotentny „tick" uruchamia się przy każdym wejściu na Dashboard/Kolejkę
+oraz raz dziennie przez Vercel Cron (`/api/cron/tick`, godz. 5:00 UTC). Po
+przerwie świeżo zaległe zadania trafiają na listę „Do zrobienia", a starsze
+(ponad 72 h) są przesuwane w najbliższe okno — bez lawiny zaległości.
+
+Opcjonalnie ustaw `CRON_SECRET`, aby zabezpieczyć endpoint crona (Vercel dołączy
+nagłówek automatycznie). Strefę czasową okien zmienisz zmienną `APP_TIMEZONE`
+(domyślnie `Europe/Warsaw`).
 
 ## Zdjęcia
 

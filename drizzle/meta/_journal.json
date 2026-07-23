@@ -22,6 +22,13 @@
       "when": 1784808294312,
       "tag": "0002_safe_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784809371937,
+      "tag": "0003_spotty_slapstick",
+      "breakpoints": true
     }
   ]
 }
