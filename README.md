@@ -352,6 +352,30 @@ Bierze szkice ogłoszeń z kont w trybie „Vinted automatyczny", wgrywa zdjęci
 wypełnia tytuł, opis i cenę, wysyła formularz, aktualizuje statusy i zapisuje
 wszystko do Historii. Tempo: ~1 wystawienie na 30 sekund.
 
+### Wiele kont
+
+Obsługa wielu kont jest wbudowana — masz ich pięć i wszystkie zadziałają.
+
+**Sesję zapisujesz osobno dla każdego konta:**
+```
+npm run zapisz-sesje -- --account 1
+npm run zapisz-sesje -- --account 2
+```
+(bez `--account` skrypt pokaże listę kont do wyboru)
+
+Jak to działa pod spodem:
+
+- **Każde konto ma własną, zaszyfrowaną sesję** w bazie — osobny rekord,
+  osobny szyfrogram. Konta nie widzą nawzajem swoich danych logowania.
+- **Worker przechodzi konta po kolei**, każde w **osobnej przeglądarce**.
+  Dzięki temu ogłoszenie z konta B nigdy nie trafi na konto A.
+- **Padnięta sesja jednego konta nie blokuje pozostałych** — worker wstrzymuje
+  kolejkę tylko tego konta, zapisuje to w Historii i przechodzi do następnego.
+- **Lokalnie każde konto ma własny profil przeglądarki** (`data/vinted-profile/<id>`),
+  więc możesz być zalogowany na kilka kont naraz bez wylogowywania się nawzajem.
+- **Limit tempa jest wspólny dla wszystkich kont** — świadomie. Chroni przed
+  zalaniem platformy żądaniami niezależnie od tego, przez ile kont przechodzisz.
+
 ### Ograniczenie, o którym trzeba wiedzieć
 
 Kategoria, marka, rozmiar i stan to na Vinted rozwijane listy z wyszukiwarką.

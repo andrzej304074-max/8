@@ -32,7 +32,11 @@ import { getAccountSession, markSessionExpired } from "@/lib/vinted-session-serv
 import { getStorage } from "@/storage";
 import selectorsJson from "../vinted-selectors.json";
 
-const PROFILE_DIR = path.resolve(process.cwd(), "data", "vinted-profile");
+/** Osobny profil przeglądarki per konto — inaczej konta wylogowywałyby się nawzajem. */
+function profileDir(accountId: number): string {
+  return path.resolve(process.cwd(), "data", "vinted-profile", String(accountId));
+}
+
 const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 
 // Konserwatywnie: jedno wystawienie na ~30 s. Pośpiech to najkrótsza droga do bana.
@@ -361,34 +365,71 @@ async function main(): Promise<void> {
     return;
   }
 
-  log(`Znaleziono ogłoszeń do wystawienia: ${toPublish.length}`);
+  // Grupowanie po kontach: KAŻDE konto dostaje własną przeglądarkę i własną
+  // sesję. Wspólna sesja dla wielu kont wystawiłaby cudze ogłoszenia na złym
+  // koncie — dlatego konta są tu twardo odseparowane.
+  const byAccount = new Map<number, typeof toPublish>();
+  for (const listing of toPublish) {
+    const group = byAccount.get(listing.accountId) ?? [];
+    group.push(listing);
+    byAccount.set(listing.accountId, group);
+  }
 
+  log(
+    `Znaleziono ogłoszeń: ${toPublish.length} na ${byAccount.size} ${
+      byAccount.size === 1 ? "koncie" : "kontach"
+    }`,
+  );
+
+  // Limiter jest WSPÓLNY dla wszystkich kont — chroni platformę niezależnie od
+  // tego, przez ile kont akurat przechodzimy.
+  const bucket = new TokenBucket(RATE_CAPACITY, RATE_REFILL_PER_SEC);
+  let publishedTotal = 0;
+
+  for (const [accountId, accountListings] of byAccount) {
+    const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId));
+    log("");
+    log(`━━ Konto: ${account?.name ?? `#${accountId}`} (${accountListings.length} do wystawienia)`);
+
+    const published = await publishForAccount(
+      accountId,
+      accountListings,
+      selectors,
+      args,
+      bucket,
+    );
+    publishedTotal += published;
+  }
+
+  log("");
+  log(`═══ Koniec. Wystawiono łącznie: ${publishedTotal} z ${toPublish.length} ═══`);
+}
+
+/**
+ * Publikuje ogłoszenia JEDNEGO konta we własnej przeglądarce.
+ * Padnięta sesja zatrzymuje kolejkę tylko tego konta — pozostałe konta
+ * są przetwarzane dalej, bo ich sesje mogą być zupełnie sprawne.
+ */
+async function publishForAccount(
+  accountId: number,
+  accountListings: (typeof listings.$inferSelect)[],
+  selectors: typeof selectorsJson,
+  args: Args,
+  bucket: TokenBucket,
+): Promise<number> {
   // CHROMIUM_PATH pozwala wskazać własną przeglądarkę (np. zainstalowanego Chrome),
   // zamiast pobierać osobną przez "npx playwright install chromium".
   const executablePath = process.env.CHROMIUM_PATH;
-  const launchOpts = {
-    ...(executablePath ? { executablePath } : {}),
-  };
+  const launchOpts = { ...(executablePath ? { executablePath } : {}) };
 
-  // Konto, z którego sesji korzystamy (worker: wszystkie ogłoszenia z jednego konta).
-  const accountId = toPublish[0]?.accountId ?? 0;
-
-  // Worker w chmurze: sesja pochodzi z bazy (zapisana lokalnie przez
-  // "npm run zapisz-sesje", zaszyfrowana AES-256-GCM). Sprawdzamy JĄ NAJPIERW —
-  // zanim uruchomimy przeglądarkę — żeby brak sesji od razu zatrzymał kolejkę.
-  let cookies: Parameters<Awaited<ReturnType<typeof chromium.launchPersistentContext>>["addCookies"]>[0] | null =
-    null;
+  // Worker: sesja z bazy (zaszyfrowana). Sprawdzamy JĄ NAJPIERW — zanim
+  // uruchomimy przeglądarkę — żeby brak sesji od razu zatrzymał kolejkę konta.
+  let cookies: Awaited<ReturnType<typeof getSessionCookies>> = null;
   if (args.worker) {
-    const cookiesJson = await getAccountSession(accountId);
-    if (!cookiesJson) {
-      await handleDeadSession(accountId, "brak zapisanej sesji dla tego konta");
-      return;
-    }
-    try {
-      cookies = JSON.parse(cookiesJson);
-    } catch {
-      await handleDeadSession(accountId, "zapisana sesja jest uszkodzona");
-      return;
+    cookies = await getSessionCookies(accountId);
+    if (cookies === null) {
+      await handleDeadSession(accountId, "brak zapisanej lub uszkodzona sesja");
+      return 0;
     }
   }
 
@@ -399,21 +440,21 @@ async function main(): Promise<void> {
         if (cookies) await ctx.addCookies(cookies);
         return ctx;
       })()
-    : await chromium.launchPersistentContext(PROFILE_DIR, {
+    : // Lokalnie: osobny profil per konto, żeby dało się być zalogowanym
+      // na kilku kontach naraz bez wzajemnego wylogowywania.
+      await chromium.launchPersistentContext(profileDir(accountId), {
         headless: false,
         viewport: { width: 1280, height: 900 },
         ...launchOpts,
       });
 
   const page = browser.pages()[0] ?? (await browser.newPage());
-
-  const bucket = new TokenBucket(RATE_CAPACITY, RATE_REFILL_PER_SEC);
   let published = 0;
 
   try {
     await waitForLogin(page, selectors, args, accountId);
 
-    for (const listing of toPublish) {
+    for (const listing of accountListings) {
       const wait = bucket.msUntilAvailable();
       if (wait > 0) {
         log(`\n(odczekuję ${Math.ceil(wait / 1000)} s — limit tempa)`);
@@ -427,18 +468,31 @@ async function main(): Promise<void> {
   } catch (error) {
     if (error instanceof SessionInvalidError) {
       await handleDeadSession(error.accountId, "sesja odrzucona przez Vinted");
-      return;
+      return published;
     }
     throw error;
   } finally {
-    log("");
-    log(`═══ Koniec. Wystawiono: ${published} z ${toPublish.length} ═══`);
     if (!args.worker) {
-      await ask("Naciśnij Enter, aby zamknąć przeglądarkę: ");
+      await ask("Naciśnij Enter, aby zamknąć przeglądarkę tego konta: ");
     }
     const underlying = browser.browser();
     await browser.close();
     await underlying?.close();
+  }
+
+  return published;
+}
+
+/** Odszyfrowane ciasteczka sesji konta; null gdy brak lub uszkodzone. */
+async function getSessionCookies(accountId: number) {
+  const cookiesJson = await getAccountSession(accountId);
+  if (!cookiesJson) return null;
+  try {
+    return JSON.parse(cookiesJson) as Parameters<
+      Awaited<ReturnType<typeof chromium.launchPersistentContext>>["addCookies"]
+    >[0];
+  } catch {
+    return null;
   }
 }
 

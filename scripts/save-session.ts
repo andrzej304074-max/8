@@ -20,7 +20,11 @@ import { accounts } from "@/db/schema";
 import { setAccountSession } from "@/lib/vinted-session-service";
 import selectors from "../vinted-selectors.json";
 
-const PROFILE_DIR = path.resolve(process.cwd(), "data", "vinted-profile");
+/** Osobny profil per konto — dzięki temu każde konto ma własną, niezależną sesję. */
+function profileDir(accountId: number): string {
+  return path.resolve(process.cwd(), "data", "vinted-profile", String(accountId));
+}
+
 const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 
 async function ask(question: string): Promise<string> {
@@ -66,7 +70,7 @@ async function main(): Promise<void> {
   console.log(`Konto: ${account.name}`);
 
   const executablePath = process.env.CHROMIUM_PATH;
-  const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
+  const browser = await chromium.launchPersistentContext(profileDir(account.id), {
     headless: false,
     viewport: { width: 1280, height: 900 },
     ...(executablePath ? { executablePath } : {}),
