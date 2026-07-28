@@ -16,5 +16,8 @@ data/*.db
 data/*.db-*
 data/uploads/
 
+# profil przeglądarki z zalogowaną sesją Vinted — NIGDY do repozytorium
+data/vinted-profile/
+
 # Vercel
 .vercel

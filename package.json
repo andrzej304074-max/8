@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "publikuj": "tsx scripts/publish-vinted.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.15.9",
@@ -30,7 +31,9 @@
     "@types/react-dom": "^19.1.0",
     "dotenv": "^16.5.0",
     "drizzle-kit": "^0.31.1",
+    "playwright": "^1.62.0",
     "tailwindcss": "^4.1.10",
+    "tsx": "^4.23.1",
     "typescript": "^5.8.3",
     "vitest": "^3.2.3"
   }

@@ -18,7 +18,7 @@ const inputCls =
 const ADAPTER_LABELS: Record<AccountAdapter, string> = {
   manual: "Ręczny (paczka do wklejenia)",
   dry_run: "Dry run (tylko logi)",
-  vinted: "Vinted automatyczny (Etap 8)",
+  vinted: "Vinted automatyczny (przez przeglądarkę, lokalnie)",
 };
 
 function AccountForm({
@@ -55,10 +55,13 @@ function AccountForm({
         <select name="adapter" defaultValue={defaults?.adapter ?? "manual"} className={inputCls}>
           <option value="manual">{ADAPTER_LABELS.manual}</option>
           <option value="dry_run">{ADAPTER_LABELS.dry_run}</option>
-          <option value="vinted" disabled>
-            {ADAPTER_LABELS.vinted}
-          </option>
+          <option value="vinted">{ADAPTER_LABELS.vinted}</option>
         </select>
+        <p className="mt-1 max-w-xs text-xs text-zinc-500 dark:text-zinc-400">
+          Tryb automatyczny wymaga uruchomienia na Twoim komputerze polecenia{" "}
+          <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">npm run publikuj</code>{" "}
+          — otworzy przeglądarkę i wypełni formularz Vinted.
+        </p>
       </div>
       <div>
         <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">

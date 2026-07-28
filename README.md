@@ -248,7 +248,69 @@ cenowym i wieku, a także **podsumowanie miesięczne** do rozliczeń.
 
 Pliki CSV otwierają się poprawnie w Excelu z polskimi znakami (BOM + średnik).
 
-## Integracja Vinted (zaprojektowana, wyłączona)
+## Automatyczne wystawianie na Vinted (lokalnie, przez przeglądarkę)
+
+> ⚠️ **Automatyzacja Vinted łamie regulamin platformy i grozi ograniczeniem lub
+> blokadą konta.** Ta funkcja istnieje na wyraźne życzenie i świadomą decyzję
+> właściciela projektu. Domyślnym, bezpiecznym trybem pozostaje publikacja ręczna.
+
+Ponieważ Vinted nie ma publicznego API, publikacja nie idzie przez ukryte
+endpointy, tylko przez **wypełnienie tego samego formularza, który wypełniłby
+człowiek** — w prawdziwej przeglądarce, w której logujesz się własnymi danymi.
+
+### Przygotowanie (raz)
+
+```
+npx playwright install chromium
+```
+
+Masz już Chrome i nie chcesz pobierać drugiej przeglądarki? Wskaż swoją:
+`CHROMIUM_PATH=/ścieżka/do/chrome` przed poleceniem.
+
+### Użycie
+
+1. W aplikacji ustaw konto na tryb **„Vinted automatyczny (przez przeglądarkę, lokalnie)"**.
+2. Na karcie przedmiotu kliknij **Przygotuj ogłoszenie** — powstanie szkic.
+3. W terminalu, w folderze projektu:
+
+```
+npm run publikuj
+```
+
+Otworzy się przeglądarka. Logujesz się na Vinted **raz** — sesja zostaje
+zapamiętana w `data/vinted-profile/` (folder jest wykluczony z repozytorium).
+Dalej skrypt dla każdego ogłoszenia wgrywa zdjęcia oraz wypełnia tytuł, opis i cenę.
+
+### Tryby
+
+| Polecenie | Zachowanie |
+|---|---|
+| `npm run publikuj` | **Domyślny, zalecany.** Wypełnia formularz i czeka — Ty sprawdzasz i klikasz „Wystaw" |
+| `npm run publikuj -- --auto` | Skrypt sam klika „Wystaw" |
+| `npm run publikuj -- --listing 12` | Tylko jedno wskazane ogłoszenie |
+
+**Kategorii, marki, rozmiaru i stanu skrypt celowo nie wypełnia** — to na Vinted
+rozwijane listy z wyszukiwarką, a źle dobrana kategoria to martwe ogłoszenie.
+Skrypt wypisuje te wartości na ekranie, żebyś wyklikał je w sekundę.
+
+Tempo jest ograniczone do ~1 wystawienia na 30 sekund. Każda operacja trafia do
+**Historii** w aplikacji.
+
+### Gdy Vinted zmieni wygląd strony
+
+Skrypt zgłosi, którego pola nie znalazł, i pominie je (uzupełnisz ręcznie —
+nic się nie psuje). Adresy pól poprawisz w pliku **`vinted-selectors.json`**,
+w którym jest instrukcja krok po kroku, jak je znaleźć. Kodu nie trzeba dotykać.
+
+### Dlaczego lokalnie, a nie w chmurze
+
+Vercel nie uruchomi przeglądarki (limit rozmiaru funkcji ~50 MB przy Chromium
+ważącym ponad 280 MB). Uruchamianie z adresu IP centrum danych to również
+znacznie silniejszy sygnał dla systemów antyfraudowych niż praca z domowego
+łącza. Wersja chmurowa jest możliwa (osobny worker np. na Render), ale zwiększa
+ryzyko blokady konta.
+
+## Integracja Vinted (warstwa bezpieczeństwa adaptera)
 
 > **Automatyczna publikacja jest celowo wyłączona.** Konta prywatne + regulamin
 > Vinted (zakaz automatyzacji) oznaczają realne ryzyko ograniczenia lub blokady

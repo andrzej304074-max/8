@@ -1,0 +1,40 @@
+{
+  "_INSTRUKCJA": [
+    "Ten plik mówi skryptowi, GDZIE na stronie Vinted kliknąć i co wypełnić.",
+    "Vinted co jakiś czas zmienia wygląd strony — wtedy trzeba tu poprawić 'selektory'.",
+    "Selektor to adres pola na stronie, np. #title albo input[name='price'].",
+    "",
+    "JAK ZNALEŹĆ SELEKTOR (2 minuty, bez programowania):",
+    "1. Otwórz Vinted i wejdź w formularz wystawiania przedmiotu.",
+    "2. Kliknij prawym przyciskiem na pole (np. 'Tytuł') i wybierz 'Zbadaj' / 'Inspect'.",
+    "3. W panelu, który się otworzy, podświetli się linijka kodu — kliknij ją prawym,",
+    "   wybierz 'Copy' → 'Copy selector'.",
+    "4. Wklej tutaj w odpowiednie miejsce, między cudzysłowy.",
+    "",
+    "Jeśli jakieś pole nie zadziała, skrypt to zgłosi i pominie — uzupełnisz je ręcznie",
+    "w przeglądarce przed wysłaniem. Nic się nie zepsuje."
+  ],
+
+  "baseUrl": "https://www.vinted.pl",
+  "sellUrl": "https://www.vinted.pl/items/new",
+
+  "loggedInMarker": "[data-testid='header--user-menu-button'], a[href*='/member/']",
+
+  "fields": {
+    "photos": "input[type='file']",
+    "title": "#title, input[name='title']",
+    "description": "#description, textarea[name='description']",
+    "price": "#price, input[name='price']"
+  },
+
+  "submitButton": "[data-testid='upload-form-save-button'], button[type='submit']",
+
+  "publishedMarker": "[data-testid='item-page'], .item-details",
+
+  "_POLA_WYMAGAJACE_KLIKANIA": [
+    "Kategoria, marka, rozmiar i stan to na Vinted rozwijane listy z wyszukiwarką,",
+    "a nie zwykłe pola tekstowe. Skrypt ich NIE wypełnia automatycznie —",
+    "pokaże Ci je na ekranie i klikniesz je sam. To najbezpieczniejsze:",
+    "źle dobrana kategoria to martwe ogłoszenie."
+  ]
+}
