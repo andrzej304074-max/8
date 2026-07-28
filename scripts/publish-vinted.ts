@@ -28,6 +28,7 @@ import { accounts, items, listings, photos } from "@/db/schema";
 import { TokenBucket } from "@/adapters/vinted/token-bucket";
 import { groszeToInputValue } from "@/domain/finance/money";
 import { logEvent } from "@/lib/event-log";
+import { getAccountSession, markSessionExpired } from "@/lib/vinted-session-service";
 import { getStorage } from "@/storage";
 import selectorsJson from "../vinted-selectors.json";
 
@@ -41,13 +42,21 @@ const RATE_REFILL_PER_SEC = 1 / 30;
 interface Args {
   auto: boolean;
   listingId: number | null;
+  /** Tryb workera: bez ekranu, sesja z bazy, zero pytań do człowieka. */
+  worker: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const auto = argv.includes("--auto");
+  // WORKER_MODE=1 ustawia kontener w chmurze (patrz render.yaml).
+  const worker = argv.includes("--worker") || process.env.WORKER_MODE === "1";
   const idx = argv.indexOf("--listing");
   const listingId = idx >= 0 && argv[idx + 1] ? Number(argv[idx + 1]) : null;
-  return { auto, listingId: Number.isFinite(listingId) ? listingId : null };
+  return {
+    // W chmurze nie ma kto kliknąć „Wystaw", więc worker zawsze działa automatycznie.
+    auto: argv.includes("--auto") || worker,
+    listingId: Number.isFinite(listingId) ? listingId : null,
+    worker,
+  };
 }
 
 function log(msg: string): void {
@@ -129,7 +138,20 @@ async function fillField(
   }
 }
 
-async function waitForLogin(page: Page, selectors: typeof selectorsJson): Promise<void> {
+/** Klasa błędu: sesja nie działa — kolejka ma zostać zatrzymana, nie zalana błędami. */
+class SessionInvalidError extends Error {
+  constructor(public readonly accountId: number) {
+    super("Sesja Vinted nie działa — wymagane odnowienie.");
+    this.name = "SessionInvalidError";
+  }
+}
+
+async function waitForLogin(
+  page: Page,
+  selectors: typeof selectorsJson,
+  args: Args,
+  accountId: number,
+): Promise<void> {
   await page.goto(selectors.baseUrl, { waitUntil: "domcontentloaded" });
 
   const isLoggedIn = async (): Promise<boolean> => {
@@ -142,8 +164,13 @@ async function waitForLogin(page: Page, selectors: typeof selectorsJson): Promis
   };
 
   if (await isLoggedIn()) {
-    log("✓ Jesteś już zalogowany na Vinted (sesja zapamiętana z poprzedniego razu).");
+    log("✓ Zalogowany na Vinted.");
     return;
+  }
+
+  // W chmurze nie ma kto się zalogować — sesja z bazy jest jedynym źródłem.
+  if (args.worker) {
+    throw new SessionInvalidError(accountId);
   }
 
   log("");
@@ -303,20 +330,34 @@ async function publishOne(
   }
 }
 
+/**
+ * Sesja padła: zatrzymujemy kolejkę konta i prosimy o odnowienie, zamiast tłuc
+ * w platformę kolejnymi nieudanymi próbami (kaskada błędów = szybszy ban).
+ */
+async function handleDeadSession(accountId: number, reason: string): Promise<void> {
+  const { pausedJobs } = await markSessionExpired(accountId);
+  log("");
+  log(`✗ SESJA VINTED NIE DZIAŁA (${reason}) — zatrzymano kolejkę tego konta.`);
+  log(`  Wstrzymanych zadań: ${pausedJobs}`);
+  log("  Odnów sesję na swoim komputerze: npm run zapisz-sesje");
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const selectors = selectorsJson;
 
   log("");
-  log("═══ Publikator Vinted (lokalny) ═══");
+  log(args.worker ? "═══ Publikator Vinted (worker w chmurze) ═══" : "═══ Publikator Vinted (lokalny) ═══");
   log(args.auto ? "Tryb: AUTOMATYCZNY" : "Tryb: PRZEGLĄD (Ty klikasz „Wystaw”)");
 
   const toPublish = await findListingsToPublish(args.listingId);
   if (toPublish.length === 0) {
     log("");
     log("Brak ogłoszeń do wystawienia.");
-    log("Podpowiedź: w aplikacji ustaw konto na tryb „Vinted automatyczny”,");
-    log("a potem na karcie przedmiotu kliknij „Przygotuj ogłoszenie”.");
+    if (!args.worker) {
+      log("Podpowiedź: w aplikacji ustaw konto na tryb „Vinted automatyczny”,");
+      log("a potem na karcie przedmiotu kliknij „Przygotuj ogłoszenie”.");
+    }
     return;
   }
 
@@ -325,18 +366,52 @@ async function main(): Promise<void> {
   // CHROMIUM_PATH pozwala wskazać własną przeglądarkę (np. zainstalowanego Chrome),
   // zamiast pobierać osobną przez "npx playwright install chromium".
   const executablePath = process.env.CHROMIUM_PATH;
-  const browser = await chromium.launchPersistentContext(PROFILE_DIR, {
-    headless: false,
-    viewport: { width: 1280, height: 900 },
+  const launchOpts = {
     ...(executablePath ? { executablePath } : {}),
-  });
+  };
+
+  // Konto, z którego sesji korzystamy (worker: wszystkie ogłoszenia z jednego konta).
+  const accountId = toPublish[0]?.accountId ?? 0;
+
+  // Worker w chmurze: sesja pochodzi z bazy (zapisana lokalnie przez
+  // "npm run zapisz-sesje", zaszyfrowana AES-256-GCM). Sprawdzamy JĄ NAJPIERW —
+  // zanim uruchomimy przeglądarkę — żeby brak sesji od razu zatrzymał kolejkę.
+  let cookies: Parameters<Awaited<ReturnType<typeof chromium.launchPersistentContext>>["addCookies"]>[0] | null =
+    null;
+  if (args.worker) {
+    const cookiesJson = await getAccountSession(accountId);
+    if (!cookiesJson) {
+      await handleDeadSession(accountId, "brak zapisanej sesji dla tego konta");
+      return;
+    }
+    try {
+      cookies = JSON.parse(cookiesJson);
+    } catch {
+      await handleDeadSession(accountId, "zapisana sesja jest uszkodzona");
+      return;
+    }
+  }
+
+  const browser = args.worker
+    ? await (async () => {
+        const b = await chromium.launch({ headless: true, ...launchOpts });
+        const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+        if (cookies) await ctx.addCookies(cookies);
+        return ctx;
+      })()
+    : await chromium.launchPersistentContext(PROFILE_DIR, {
+        headless: false,
+        viewport: { width: 1280, height: 900 },
+        ...launchOpts,
+      });
+
   const page = browser.pages()[0] ?? (await browser.newPage());
 
   const bucket = new TokenBucket(RATE_CAPACITY, RATE_REFILL_PER_SEC);
   let published = 0;
 
   try {
-    await waitForLogin(page, selectors);
+    await waitForLogin(page, selectors, args, accountId);
 
     for (const listing of toPublish) {
       const wait = bucket.msUntilAvailable();
@@ -349,11 +424,21 @@ async function main(): Promise<void> {
       const result = await publishOne(page, selectors, listing, args.auto);
       if (result === "published") published += 1;
     }
+  } catch (error) {
+    if (error instanceof SessionInvalidError) {
+      await handleDeadSession(error.accountId, "sesja odrzucona przez Vinted");
+      return;
+    }
+    throw error;
   } finally {
     log("");
     log(`═══ Koniec. Wystawiono: ${published} z ${toPublish.length} ═══`);
-    await ask("Naciśnij Enter, aby zamknąć przeglądarkę: ");
+    if (!args.worker) {
+      await ask("Naciśnij Enter, aby zamknąć przeglądarkę: ");
+    }
+    const underlying = browser.browser();
     await browser.close();
+    await underlying?.close();
   }
 }
 

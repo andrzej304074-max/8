@@ -302,13 +302,63 @@ Skrypt zgłosi, którego pola nie znalazł, i pominie je (uzupełnisz ręcznie �
 nic się nie psuje). Adresy pól poprawisz w pliku **`vinted-selectors.json`**,
 w którym jest instrukcja krok po kroku, jak je znaleźć. Kodu nie trzeba dotykać.
 
-### Dlaczego lokalnie, a nie w chmurze
+## Wersja chmurowa — worker na Render
 
-Vercel nie uruchomi przeglądarki (limit rozmiaru funkcji ~50 MB przy Chromium
-ważącym ponad 280 MB). Uruchamianie z adresu IP centrum danych to również
-znacznie silniejszy sygnał dla systemów antyfraudowych niż praca z domowego
-łącza. Wersja chmurowa jest możliwa (osobny worker np. na Render), ale zwiększa
-ryzyko blokady konta.
+> ⚠️ **Uruchamianie z adresu IP centrum danych znacznie zwiększa ryzyko blokady
+> konta** — dla systemów antyfraudowych logowanie na prywatne konto z serwerowni
+> to silny sygnał. Wersja lokalna jest pod tym względem bezpieczniejsza.
+
+Vercel nie uruchomi przeglądarki (limit funkcji ~50 MB przy Chromium ważącym
+ponad 280 MB), więc publikacja dostaje **osobny worker w chmurze**. Aplikacja
+zostaje na Vercelu; worker sięga do tej samej bazy Turso.
+
+### Jak działa logowanie bez ekranu
+
+W kontenerze nie ma jak kliknąć „zaloguj". Dlatego:
+
+1. Logujesz się **raz u siebie**: `npm run zapisz-sesje`
+2. Ciasteczka sesji trafiają do bazy **zaszyfrowane** (AES-256-GCM, klucz
+   wyprowadzany z `SESSION_SECRET`, który żyje tylko w zmiennych środowiskowych).
+3. Worker w chmurze odczytuje je i wstrzykuje do przeglądarki.
+
+Gdy sesja wygaśnie, worker **zatrzymuje kolejkę tego konta**, oznacza sesję jako
+wygasłą i zapisuje to w Historii — zamiast tłuc w platformę nieudanymi próbami.
+Wtedy powtarzasz `npm run zapisz-sesje`.
+
+### Wdrożenie krok po kroku
+
+1. **Zapisz sesję u siebie** (bez tego worker nic nie zrobi):
+   ```
+   npm run zapisz-sesje
+   ```
+2. Wejdź na **https://render.com** → zaloguj się przez GitHub.
+3. **New → Blueprint** → wskaż to repozytorium. Render wykryje plik `render.yaml`.
+4. Uzupełnij zmienne środowiskowe (te same wartości co na Vercelu):
+
+   | Zmienna | Skąd wziąć |
+   |---|---|
+   | `DATABASE_URL` | Turso |
+   | `DATABASE_AUTH_TOKEN` | Turso |
+   | `SESSION_SECRET` | **musi być identyczny jak na Vercelu** — inaczej sesja się nie odszyfruje |
+   | `APP_PASSWORD` | to samo co na Vercelu |
+   | `BLOB_READ_WRITE_TOKEN` | Vercel → Storage → Blob (worker pobiera stamtąd zdjęcia) |
+
+5. Kliknij **Apply**. Worker zbuduje się z `Dockerfile` i będzie uruchamiany
+   codziennie o 9:00 UTC (porę zmienisz w `render.yaml`, pole `schedule`).
+
+### Co robi worker przy każdym uruchomieniu
+
+Bierze szkice ogłoszeń z kont w trybie „Vinted automatyczny", wgrywa zdjęcia,
+wypełnia tytuł, opis i cenę, wysyła formularz, aktualizuje statusy i zapisuje
+wszystko do Historii. Tempo: ~1 wystawienie na 30 sekund.
+
+### Ograniczenie, o którym trzeba wiedzieć
+
+Kategoria, marka, rozmiar i stan to na Vinted rozwijane listy z wyszukiwarką.
+W trybie lokalnym wyklikujesz je sam. **W chmurze nie ma kto tego zrobić** —
+jeśli Vinted wymaga tych pól, wysyłka formularza może się nie powieść i worker
+zapisze błąd w Historii. Obsługę tych list trzeba dopracować na żywym formularzu
+(selektory w `vinted-selectors.json`). Dlatego warto zacząć lokalnie.
 
 ## Integracja Vinted (warstwa bezpieczeństwa adaptera)
 
