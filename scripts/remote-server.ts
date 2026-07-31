@@ -59,7 +59,20 @@ async function getBrowser(): Promise<BrowserContext> {
     {
       headless: false,
       viewport: null,
-      args: ["--window-position=0,0", "--window-size=1280,900", "--no-first-run"],
+      args: [
+        "--window-position=0,0",
+        "--window-size=1280,900",
+        "--no-first-run",
+        // Kontener ma mało pamięci współdzielonej (/dev/shm) — bez tego
+        // Chromium potrafi się wywalić przy pierwszej cięższej stronie.
+        "--disable-dev-shm-usage",
+        // W kontenerze nie ma karty graficznej ani piaskownicy jądra.
+        "--disable-gpu",
+        "--no-sandbox",
+        // Mniej procesów w tle = mniej zużytej pamięci na małym planie.
+        "--disable-extensions",
+        "--disable-background-networking",
+      ],
     },
   );
   const page = browser.pages()[0] ?? (await browser.newPage());
