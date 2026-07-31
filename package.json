@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "publikuj": "tsx scripts/publish-vinted.ts",
     "zapisz-sesje": "tsx scripts/save-session.ts",
-    "worker": "tsx scripts/publish-vinted.ts --worker"
+    "worker": "tsx scripts/publish-vinted.ts --worker",
+    "panel-zdalny": "tsx scripts/remote-server.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.15.9",

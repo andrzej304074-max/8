@@ -1,41 +1,62 @@
-# Konfiguracja workera publikującego na Vinted dla Render.com
+# Wszystko w chmurze: zdalna przeglądarka + automatyczna publikacja na Vinted.
 #
-# Worker NIE jest stroną WWW — to zadanie uruchamiane cyklicznie (cron job),
-# które zagląda do bazy, bierze szkice ogłoszeń i wystawia je przez przeglądarkę.
-# Aplikacja (magazyn, AI, statystyki) dalej mieszka na Vercelu.
+# Powstają DWIE usługi:
+#   1. vinted-remote     — panel ze zdalną przeglądarką (tu się logujesz na Vinted)
+#   2. vinted-publisher  — worker wystawiający ogłoszenia wg harmonogramu
+#
+# Na Twoim komputerze nie trzeba instalować niczego.
 #
 # JAK UŻYĆ:
 #   1. Render → New → Blueprint → wskaż to repozytorium.
-#   2. Render wykryje ten plik i zaproponuje utworzenie usługi.
-#   3. Uzupełnij zmienne oznaczone niżej jako sync:false (wartości wpiszesz ręcznie).
-#
-# UWAGA: przed pierwszym uruchomieniem zapisz sesję Vinted na swoim komputerze:
-#   npm run zapisz-sesje
-# Bez tego worker zatrzyma kolejkę i poprosi o odnowienie sesji.
+#   2. Uzupełnij zmienne oznaczone sync:false (te same wartości co na Vercelu).
+#   3. Wejdź na adres usługi vinted-remote, zaloguj się hasłem aplikacji,
+#      zaloguj się na Vinted w widocznym oknie i kliknij „Zapisz sesję".
 
 services:
+  # ── 1. Panel ze zdalną przeglądarką ──────────────────────────────────────
+  - type: web
+    name: vinted-remote
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_AUTH_TOKEN
+        sync: false
+      # MUSI być identyczny jak na Vercelu — z niego wyprowadzany jest klucz
+      # szyfrujący sesje Vinted ORAZ hasło do panelu.
+      - key: SESSION_SECRET
+        sync: false
+      # Hasło do panelu zdalnej przeglądarki (to samo co logowanie do aplikacji).
+      - key: APP_PASSWORD
+        sync: false
+      # Zdjęcia z Vercel Blob — worker musi je pobrać, by wgrać do formularza.
+      - key: BLOB_READ_WRITE_TOKEN
+        sync: false
+      - key: APP_TIMEZONE
+        value: Europe/Warsaw
+
+  # ── 2. Worker publikujący wg harmonogramu ────────────────────────────────
   - type: cronjob
     name: vinted-publisher
     runtime: docker
     dockerfilePath: ./Dockerfile
+    dockerCommand: npm run worker
     plan: starter
     # Codziennie o 9:00 UTC (11:00 czasu polskiego latem).
     # Format: minuta godzina dzień miesiąc dzień-tygodnia
     schedule: "0 9 * * *"
     envVars:
-      # Baza Turso — te same wartości co na Vercelu.
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_AUTH_TOKEN
         sync: false
-      # MUSI być identyczny jak na Vercelu — z niego wyprowadzany jest klucz,
-      # którym odszyfrowywana jest zapisana sesja Vinted.
       - key: SESSION_SECRET
         sync: false
-      # Wymagane przez walidację konfiguracji aplikacji.
       - key: APP_PASSWORD
         sync: false
-      # Zdjęcia z Vercel Blob (worker musi je pobrać, by wgrać do formularza).
       - key: BLOB_READ_WRITE_TOKEN
         sync: false
       - key: APP_TIMEZONE

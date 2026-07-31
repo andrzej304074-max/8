@@ -312,14 +312,23 @@ Vercel nie uruchomi przeglądarki (limit funkcji ~50 MB przy Chromium ważącym
 ponad 280 MB), więc publikacja dostaje **osobny worker w chmurze**. Aplikacja
 zostaje na Vercelu; worker sięga do tej samej bazy Turso.
 
-### Jak działa logowanie bez ekranu
+### Logowanie do Vinted przez zdalną przeglądarkę (bez instalacji u siebie)
 
-W kontenerze nie ma jak kliknąć „zaloguj". Dlatego:
+Usługa **vinted-remote** udostępnia panel, w którym widzisz przeglądarkę
+działającą **na serwerze**. Logujesz się w niej na Vinted tak jak zwykle
+i klikasz „Zapisz sesję" — ciasteczka trafiają do bazy **zaszyfrowane**
+(AES-256-GCM, klucz z `SESSION_SECRET`, który żyje tylko w zmiennych
+środowiskowych). Worker publikujący odczytuje je przy każdym uruchomieniu.
 
-1. Logujesz się **raz u siebie**: `npm run zapisz-sesje`
-2. Ciasteczka sesji trafiają do bazy **zaszyfrowane** (AES-256-GCM, klucz
-   wyprowadzany z `SESSION_SECRET`, który żyje tylko w zmiennych środowiskowych).
-3. Worker w chmurze odczytuje je i wstrzykuje do przeglądarki.
+Pod spodem: Xvfb (wirtualny ekran) + Chromium + x11vnc + noVNC, wszystko
+schowane za hasłem aplikacji. Port VNC nasłuchuje wyłącznie lokalnie —
+z internetu dostępny jest tylko panel, i to po zalogowaniu.
+
+Sesję możesz też wkleić ręcznie w **Ustawieniach → Integracja Vinted**;
+pole przyjmuje zarówno JSON, jak i zwykły nagłówek `Cookie` z przeglądarki.
+
+> Alternatywa dla osób, które wolą pracować u siebie: `npm run zapisz-sesje`
+> robi to samo lokalnie.
 
 Gdy sesja wygaśnie, worker **zatrzymuje kolejkę tego konta**, oznacza sesję jako
 wygasłą i zapisuje to w Historii — zamiast tłuc w platformę nieudanymi próbami.

@@ -8,6 +8,7 @@ import type { ActionResult } from "@/app/(app)/magazyn/actions";
 import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { logEvent } from "@/lib/event-log";
+import { normalizeSessionInput } from "@/lib/vinted-cookies";
 import {
   clearAccountSession,
   getAccountSession,
@@ -21,7 +22,19 @@ export async function saveVintedSession(
 ): Promise<ActionResult> {
   const session = String(formData.get("session") ?? "").trim();
   if (session === "") return { ok: false, error: "Wklej sesję do zapisania." };
-  await setAccountSession(accountId, session);
+
+  // Normalizujemy do jednego formatu, żeby worker zawsze dostał to samo —
+  // niezależnie od tego, czy wkleiłeś JSON, czy nagłówek Cookie z przeglądarki.
+  const cookies = normalizeSessionInput(session);
+  if (cookies === null) {
+    return {
+      ok: false,
+      error:
+        "Nie rozpoznałem formatu sesji. Wklej ciasteczka jako JSON " +
+        "albo w postaci „nazwa=wartość; nazwa2=wartość2”.",
+    };
+  }
+  await setAccountSession(accountId, JSON.stringify(cookies));
   revalidatePath("/ustawienia");
   return { ok: true, data: undefined };
 }

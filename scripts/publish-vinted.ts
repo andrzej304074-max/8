@@ -29,6 +29,7 @@ import { TokenBucket } from "@/adapters/vinted/token-bucket";
 import { groszeToInputValue } from "@/domain/finance/money";
 import { logEvent } from "@/lib/event-log";
 import { getAccountSession, markSessionExpired } from "@/lib/vinted-session-service";
+import { normalizeSessionInput } from "@/lib/vinted-cookies";
 import { getStorage } from "@/storage";
 import selectorsJson from "../vinted-selectors.json";
 
@@ -485,15 +486,10 @@ async function publishForAccount(
 
 /** Odszyfrowane ciasteczka sesji konta; null gdy brak lub uszkodzone. */
 async function getSessionCookies(accountId: number) {
-  const cookiesJson = await getAccountSession(accountId);
-  if (!cookiesJson) return null;
-  try {
-    return JSON.parse(cookiesJson) as Parameters<
-      Awaited<ReturnType<typeof chromium.launchPersistentContext>>["addCookies"]
-    >[0];
-  } catch {
-    return null;
-  }
+  const raw = await getAccountSession(accountId);
+  if (!raw) return null;
+  // Normalizator przyjmuje zarówno JSON, jak i nagłówek Cookie wklejony ręcznie.
+  return normalizeSessionInput(raw);
 }
 
 main().catch((error) => {
