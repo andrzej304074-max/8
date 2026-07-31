@@ -94,11 +94,15 @@ function html(body: string): string {
 </style></head><body><div class="wrap">${body}</div></body></html>`;
 }
 
-function loginPage(error = ""): string {
+function loginPage(error = "", next = "/"): string {
+  // Zachowujemy adres docelowy, żeby po zalogowaniu wrócić do właściwego konta
+  // (wejście z sekcji Konta ma postać /?account=3).
+  const safeNext = next.startsWith("/") ? next : "/";
   return html(`<h1>Zdalna przeglądarka Vinted</h1>
 ${error ? `<div class="msg err">${error}</div>` : ""}
 <form method="POST" action="/login">
   <p class="hint">Podaj hasło do aplikacji (to samo co w APP_PASSWORD).</p>
+  <input type="hidden" name="next" value="${safeNext.replace(/"/g, "&quot;")}">
   <div class="bar">
     <input type="password" name="password" placeholder="hasło" autofocus>
     <button type="submit">Wejdź</button>
@@ -106,22 +110,32 @@ ${error ? `<div class="msg err">${error}</div>` : ""}
 </form>`);
 }
 
-function panelPage(accountList: { id: number; name: string }[]): string {
+function panelPage(
+  accountList: { id: number; name: string }[],
+  preselectedId: number | null,
+): string {
   const options = accountList
-    .map((a) => `<option value="${a.id}">${a.name}</option>`)
+    .map(
+      (a) =>
+        `<option value="${a.id}"${a.id === preselectedId ? " selected" : ""}>${a.name}</option>`,
+    )
     .join("");
-  return html(`<h1>Zdalna przeglądarka Vinted</h1>
+  const preselected = accountList.find((a) => a.id === preselectedId);
+  return html(`<h1>Logowanie do Vinted${
+    preselected ? ` — konto: ${preselected.name}` : ""
+  }</h1>
 <div id="msg"></div>
 <p class="hint">
   Poniżej widzisz przeglądarkę działającą <strong>na serwerze</strong>.
-  Zaloguj się w niej na Vinted (klikaj i pisz tak jak zwykle), a potem wybierz
-  konto i kliknij „Zapisz sesję”. Worker będzie od tej chwili publikował sam.
+  Zaloguj się w niej na Vinted (klikaj i pisz tak jak zwykle), a potem kliknij
+  <strong>„Zapisz sesję”</strong>. Od tej chwili ogłoszenia będą wystawiane
+  automatycznie${preselected ? ` na koncie <strong>${preselected.name}</strong>` : ""}.
 </p>
 <div class="bar">
   <button class="ghost" onclick="post('/api/otworz-vinted')">Otwórz Vinted</button>
   <select id="acc">${options}</select>
   <button onclick="post('/api/zapisz-sesje?account='+document.getElementById('acc').value)">
-    Zapisz sesję dla wybranego konta
+    Zapisz sesję
   </button>
   <button class="ghost" onclick="post('/api/publikuj')">Opublikuj oczekujące</button>
 </div>
@@ -170,21 +184,27 @@ const server = http.createServer(async (req, res) => {
   // Logowanie do panelu
   if (url.pathname === "/login" && req.method === "POST") {
     const body = await readBody(req);
-    const password = new URLSearchParams(body).get("password") ?? "";
+    const params = new URLSearchParams(body);
+    const password = params.get("password") ?? "";
+    // Tylko adresy względne — bez tego dałoby się przekierować użytkownika
+    // na obcą stronę po zalogowaniu.
+    const rawNext = params.get("next") ?? "/";
+    const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
     if (password === config.APP_PASSWORD) {
       res.writeHead(302, {
         "Set-Cookie": `${AUTH_COOKIE}=${authToken()}; HttpOnly; Path=/; SameSite=Lax`,
-        Location: "/",
+        Location: next,
       }).end();
     } else {
       res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" })
-        .end(loginPage("Nieprawidłowe hasło."));
+        .end(loginPage("Nieprawidłowe hasło.", next));
     }
     return;
   }
 
   if (!isAuthed(req)) {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(loginPage());
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+      .end(loginPage("", req.url ?? "/"));
     return;
   }
 
@@ -197,8 +217,11 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/" && req.method === "GET") {
     const rows = await db.select().from(accounts).where(eq(accounts.adapter, "vinted"));
     const list = rows.length > 0 ? rows : await db.select().from(accounts);
+    // ?account=N przychodzi z sekcji Konta w aplikacji — od razu wybieramy to konto.
+    const requested = Number(url.searchParams.get("account"));
+    const preselected = Number.isInteger(requested) && requested > 0 ? requested : null;
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
-      .end(panelPage(list.map((a) => ({ id: a.id, name: a.name }))));
+      .end(panelPage(list.map((a) => ({ id: a.id, name: a.name })), preselected));
     return;
   }
 

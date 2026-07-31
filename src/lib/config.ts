@@ -18,6 +18,9 @@ const envSchema = z.object({
   APP_TIMEZONE: z.string().min(1).default("Europe/Warsaw"),
   // Opcjonalny sekret chroniący endpoint /api/cron/tick (Vercel Cron).
   CRON_SECRET: z.string().optional(),
+  // Adres usługi ze zdalną przeglądarką (Render). Puste = przycisk logowania
+  // do Vinted w sekcji Konta pokaże instrukcję zamiast działać.
+  REMOTE_BROWSER_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 });
 
 function loadConfig() {

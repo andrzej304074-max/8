@@ -10,7 +10,24 @@ export interface AccountRow {
   adapter: AccountAdapter;
   activeListingLimit: number | null;
   publishedCount: number;
+  sessionStatus: "manual" | "active" | "expired";
+  hasSession: boolean;
 }
+
+const SESSION_BADGE: Record<AccountRow["sessionStatus"], { label: string; cls: string }> = {
+  manual: {
+    label: "brak sesji",
+    cls: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  },
+  active: {
+    label: "zalogowane ✓",
+    cls: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  },
+  expired: {
+    label: "sesja wygasła",
+    cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  },
+};
 
 const inputCls =
   "rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900";
@@ -86,7 +103,13 @@ function AccountForm({
   );
 }
 
-export function AccountsManager({ accounts }: { accounts: AccountRow[] }) {
+export function AccountsManager({
+  accounts,
+  remoteBrowserUrl,
+}: {
+  accounts: AccountRow[];
+  remoteBrowserUrl: string | null;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -100,8 +123,24 @@ export function AccountsManager({ accounts }: { accounts: AccountRow[] }) {
     });
   };
 
+  const hasVintedAccounts = accounts.some((a) => a.adapter === "vinted");
+
   return (
     <div className="space-y-4">
+      {hasVintedAccounts && !remoteBrowserUrl ? (
+        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mb-1 font-medium">Logowanie do Vinted nie jest jeszcze podpięte</p>
+          <p>
+            Masz konta w trybie automatycznym, ale aplikacja nie wie, gdzie stoi
+            zdalna przeglądarka. Wdróż usługę na Render (plik{" "}
+            <code className="rounded bg-amber-100 px-1 dark:bg-amber-900">render.yaml</code>),
+            skopiuj jej adres i dodaj go na Vercelu jako zmienną{" "}
+            <code className="rounded bg-amber-100 px-1 dark:bg-amber-900">REMOTE_BROWSER_URL</code>,
+            po czym zrób Redeploy. Instrukcja jest w README.
+          </p>
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="mb-3 text-sm font-semibold">Dodaj konto</h2>
         <AccountForm
@@ -126,7 +165,7 @@ export function AccountsManager({ accounts }: { accounts: AccountRow[] }) {
                 <th className="px-3 py-2 font-medium">Konto</th>
                 <th className="px-3 py-2 font-medium">Tryb publikacji</th>
                 <th className="px-3 py-2 font-medium">Aktywne ogłoszenia</th>
-                <th className="px-3 py-2 font-medium">Sesja</th>
+                <th className="px-3 py-2 font-medium">Logowanie do Vinted</th>
                 <th className="px-3 py-2 font-medium" />
               </tr>
             </thead>
@@ -161,8 +200,36 @@ export function AccountsManager({ accounts }: { accounts: AccountRow[] }) {
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
-                        tryb ręczny — bez sesji
+                      <td className="px-3 py-2">
+                        {account.adapter !== "vinted" ? (
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                            niepotrzebne w tym trybie
+                          </span>
+                        ) : (
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`rounded px-2 py-0.5 text-xs font-medium ${SESSION_BADGE[account.sessionStatus].cls}`}
+                            >
+                              {SESSION_BADGE[account.sessionStatus].label}
+                            </span>
+                            {remoteBrowserUrl ? (
+                              <a
+                                href={`${remoteBrowserUrl.replace(/\/$/, "")}/?account=${account.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                              >
+                                {account.hasSession
+                                  ? "Zaloguj ponownie →"
+                                  : "Zaloguj do Vinted →"}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-amber-600 dark:text-amber-400">
+                                ustaw REMOTE_BROWSER_URL
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <span className="flex gap-2 text-xs">

@@ -312,7 +312,19 @@ Vercel nie uruchomi przeglądarki (limit funkcji ~50 MB przy Chromium ważącym
 ponad 280 MB), więc publikacja dostaje **osobny worker w chmurze**. Aplikacja
 zostaje na Vercelu; worker sięga do tej samej bazy Turso.
 
-### Logowanie do Vinted przez zdalną przeglądarkę (bez instalacji u siebie)
+### Gdzie klikasz „Zaloguj do Vinted"
+
+W aplikacji: **Konta** → przy każdym koncie w trybie „Vinted automatyczny"
+widzisz status sesji (*brak sesji* / *zalogowane ✓* / *sesja wygasła*) oraz
+przycisk **„Zaloguj do Vinted →"**. Otwiera on zdalną przeglądarkę z już
+wybranym kontem.
+
+Żeby przycisk działał, aplikacja musi wiedzieć, gdzie stoi zdalna przeglądarka:
+po wdrożeniu usługi na Render skopiuj jej adres i dodaj na Vercelu zmienną
+**`REMOTE_BROWSER_URL`** (np. `https://vinted-remote.onrender.com`), a potem
+zrób **Redeploy**. Dopóki tego nie zrobisz, sekcja Konta pokaże przypomnienie.
+
+### Jak działa zdalna przeglądarka (bez instalacji u siebie)
 
 Usługa **vinted-remote** udostępnia panel, w którym widzisz przeglądarkę
 działającą **na serwerze**. Logujesz się w niej na Vinted tak jak zwykle

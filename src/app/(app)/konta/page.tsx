@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, listings } from "@/db/schema";
+import { config } from "@/lib/config";
 import { AccountsManager, type AccountRow } from "./accounts-manager";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,8 @@ export default async function KontaPage() {
         adapter: account.adapter,
         activeListingLimit: account.activeListingLimit,
         publishedCount: published.length,
+        sessionStatus: account.sessionStatus,
+        hasSession: account.secretRef !== null,
       };
     }),
   );
@@ -32,7 +35,7 @@ export default async function KontaPage() {
         wklejenia; dry run tylko loguje operacje do Historii. Automatyczna
         publikacja (z sesją) pojawi się w Etapie 8.
       </p>
-      <AccountsManager accounts={rows} />
+      <AccountsManager accounts={rows} remoteBrowserUrl={config.REMOTE_BROWSER_URL ?? null} />
     </div>
   );
 }
